@@ -1,172 +1,197 @@
-library ieee;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
-
-package matriz_pkg is
+package matriz_cnt_pkg is
     type matriz_array is array(natural range <>) of integer; 
+    type Matriz8 is array (0 to 7, 0 to 7) of integer;
+    type Matriz4 is array (0 to 3, 0 to 3) of integer;
+    type Matriz2 is array (0 to 1, 0 to 1) of integer;
 end package;
 
 library ieee;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.std_logic_signed.all;
-use IEEE.std_logic_unsigned.all;
 use IEEE.NUMERIC_STD.ALL;
-use work.matriz_pkg.all;
+use work.matriz_cnt_pkg.all;
 
 
 entity operative is
     Port(
-        -- ENTRADA
         clock :   in  std_logic;
         reset_dados :   in  std_logic;
-        entrada_a : in matriz_array(0 to 63);
-        entrada_b : in matriz_array(0 to 3);
-        
-        -- SINAIS DE CONTROLE
+        entrada_a : in Matriz8;
+        entrada_b : in Matriz2;
         loadR : in std_logic;
-        --loadM : in std_logic;
         loadA : in std_logic;
         loadB : in std_logic;
         loadC : in std_logic;
         loadD : in std_logic;
-        loadCount : in std_logic;
-        decCount : in std_logic;
-
-        -- SAIDA
-        resultado : out matriz_array(0 to 3);
-        acabouMedia : out std_logic
+        doneA : out std_logic;
+        doneB : out std_logic;
+        doneC : out std_logic;
+        doneD : out std_logic;
+        doneR : out std_logic;
+        resultado : out Matriz2
     );
 end operative;
 
 architecture behav of operative is
 
-    signal acumuladorA : integer := 0;
-    signal acumuladorB : integer := 0;
-    signal acumuladorC : integer := 0;
-    signal acumuladorD : integer := 0;
-    signal final : matriz_array(0 to 3) := (others => 0);
-    signal MatrizM :  matriz_array(0 to 3) := (others => 0);
-    signal count : integer;
+    signal MatrizA, MatrizB, MatrizC, MatrizD : Matriz4;
+    signal Final,MatrizM : Matriz2;
     
 begin
 
-  -- Media dos quatro quadrantes da matriz A virando a matriz M
   process(clock, reset_dados, loadA)
+    variable acumulador : integer;
   begin
       if reset_dados = '1' then
-          acumuladorA <= 0;
-          MatrizM(0) <= 0;
+        acumulador := 0;
+        MatrizM(0,0) <= 0;
+        doneA <= '0';
+        
+        for row in 0 to 3 loop
+            for col in 0 to 3 loop
+                MatrizA(row,col) <= 0;
+            end loop;
+        end loop;
+            
       elsif rising_edge(clock) then
           if loadA = '1' then
+              acumulador := 0;
               for row in 0 to 3 loop
                   for col in 0 to 3 loop
-                      acumuladorA <= acumuladorA + entrada_a((row * 8) + col);
+                    MatrizA(row,col) <= entrada_a(row,col);
+                    acumulador := acumulador + entrada_a(row,col);
                   end loop;
               end loop;
-              MatrizM(0) <= MatrizM(0) +  (acumuladorA / 16);
+              MatrizM(0,0) <= acumulador / 16;
+              doneA <= '1';
           else
-              acumuladorA <= acumuladorA;
+            MatrizA <= MatrizA;
           end if;
        end if;
   end process;   
 
   process(clock, reset_dados, loadB)
+    variable acumulador : integer;
+    variable mcol : integer;
   begin
       if reset_dados = '1' then
-          MatrizM(1) <= 0;
-          acumuladorB <= 0;
+          MatrizM(0,1) <= 0;
+          acumulador := 0;
+          doneB <= '0';
+                  
+        for row in 0 to 3 loop
+            for col in 0 to 3 loop
+                MatrizB(row,col) <= 0;
+            end loop;
+        end loop;
+
       elsif rising_edge(clock) then
           if loadB = '1' then
+              acumulador := 0;
               for row in 0 to 3 loop
-                  for col in 0 to 3 loop
-                      acumuladorB <= acumuladorB + entrada_a((row * 8) + col + 4);
+                  for col in 4 to 7 loop
+                      mcol := col -4;
+                      MatrizB(row, mcol) <= entrada_a(row,col);
+                      acumulador := acumulador + entrada_a(row,col);
                   end loop;
               end loop;
-              MatrizM(1) <= MatrizM(1) + (acumuladorB / 16);
-          else
-              acumuladorB <= acumuladorB;
+            MatrizM(0,1) <= (acumulador / 16);
+            doneB <= '1';
+            else
+                MatrizB <= MatrizB;
           end if;
       end if;
   end process;
 
   process(clock, reset_dados, loadC)
+    variable acumulador : integer;
+    variable mrow : integer;
   begin
       if reset_dados = '1' then
-          MatrizM(2) <= 0;
-          acumuladorC <= 0;
+          MatrizM(1,0) <= 0;
+          acumulador := 0;
+          doneC <= '0';
+
+        for row in 0 to 3 loop
+            for col in 0 to 3 loop
+                MatrizC(row,col) <= 0;
+            end loop;
+        end loop;
+
       elsif rising_edge(clock) then
           if loadC = '1' then
+              acumulador := 0;
               for row in 4 to 7 loop
                   for col in 0 to 3 loop
-                      acumuladorC <= acumuladorC + entrada_a((row * 8) + col + 4);
+                      mrow := row - 4;
+                      MatrizC(mrow,col) <= entrada_a(row,col);
+                      acumulador := acumulador + entrada_a(row,col);
                   end loop;
               end loop;
-              MatrizM(2) <= MatrizM(2) + (acumuladorC / 16);
+              MatrizM(1,0) <=  (acumulador / 16);
+              doneC <= '1';
           else
-              acumuladorC <= acumuladorC;
+            MatrizC <= MatrizC;
           end if;
       end if;
   end process;
 
   process(clock, reset_dados, loadD)
+    variable acumulador : integer;
+    variable mrow, mcol : integer;
   begin
       if reset_dados = '1' then
-          MatrizM(3) <= 0;
-          acumuladorD <= 0;
+        MatrizM(1,1) <= 0;
+        acumulador := 0;
+        doneD <= '0';
+                            
+        for row in 0 to 3 loop
+            for col in 0 to 3 loop
+                MatrizD(row,col) <= 0;
+            end loop;
+        end loop;
+
       elsif rising_edge(clock) then
           if loadD = '1' then
+              acumulador := 0;
               for row in 4 to 7 loop
-                  for col in 0 to 3 loop
-                      acumuladorD <= acumuladorD + entrada_a((row * 8) + col + 4);
+                  for col in 4 to 7 loop
+                      mrow := row - 4;
+                      mcol := col - 4;
+                      MatrizD(mrow,mcol) <= entrada_a(row,col);
+                      acumulador := acumulador + entrada_a(row,col);
                   end loop;
               end loop;
-              MatrizM(3) <= MatrizM(3) + (acumuladorD / 16);
+              MatrizM(1,1) <= (acumulador / 16);
+              doneD <= '1';
           else
-              acumuladorD <= acumuladorD;
+            MatrizD <= MatrizD;
           end if;
       end if;
   end process;
 
-  -- Sinal das iterações
-  process(count)
-  begin
-      if count = 0 then
-          acabouMedia <= '1';
-      else
-          acabouMedia <= '0';
-      end if;
-  end process;
 
   process(clock, reset_dados)
   begin
       if reset_dados = '1' then
-          count <= 0;
-      elsif rising_edge(clock) then
-          if loadCount = '1' then
-              count <= 3;
-          elsif decCount = '1' then
-              count <= count - 1;
-          else
-              count <= count;
-          end if;
-      end if;
-  end process;
-
-  resultado <= final;
-  process(clock, reset_dados)
-  begin
-      if reset_dados = '1' then
-          final <= (others => 0);
+        doneR <= '0';
+        for row in 0 to 1 loop
+            for col in 0 to 1 loop
+                final(row,col) <= 0;
+            end loop;
+        end loop;
       elsif rising_edge(clock) then
           if loadR = '1' then
-              final(0) <= (MatrizM(0) * entrada_b(0)) + (MatrizM(1) * entrada_b(2));
-              final(1) <= (MatrizM(0) * entrada_b(1)) + (MatrizM(1) * entrada_b(3));
-              final(2) <= (MatrizM(2) * entrada_b(0)) + (MatrizM(3) * entrada_b(2));
-              final(3) <= (MatrizM(2) * entrada_b(1)) + (MatrizM(3) * entrada_b(3));
+              final(0,0) <= (MatrizM(0,0) * entrada_b(0,0)) + (MatrizM(0,1) * entrada_b(1,0));
+              final(0,1) <= (MatrizM(0,0) * entrada_b(0,1)) + (MatrizM(0,1) * entrada_b(1,1));
+              final(1,0) <= (MatrizM(1,0) * entrada_b(0,0)) + (MatrizM(1,1) * entrada_b(1,0));
+              final(1,1) <= (MatrizM(1,0) * entrada_b(0,1)) + (MatrizM(1,1) * entrada_b(1,1));
+              doneR <= '1';
           else
               final <=  final;
           end if;
       end if;
   end process;
+  resultado <= final;
 
 end behav;
